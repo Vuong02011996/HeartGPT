@@ -1,0 +1,168 @@
+{
+    "AFIB": {
+        "emergent": {
+            "max_hr": {
+                "duration": 30,
+                "heart_rate": 180
+            },
+            "min_hr": {
+                "duration": 30,
+                "heart_rate": 30
+            }
+        },
+        "urgent": {
+            "max_hr": {
+                "duration": 30,
+                "heart_rate": 150
+            },
+            "min_hr": {
+                "duration": 10,
+                "heart_rate": 30
+            }
+        }
+    },
+
+    "AVB2": {
+        "emergent": {
+            "num_beat": 3,
+            "heart_rate": 30
+        },
+        "urgent": {
+            "num_beat": 5,
+            "heart_rate": 35
+        }
+    },
+
+    "AVB3": {
+        "emergent": {
+            "duration": 10,
+            "heart_rate": 30
+        }
+    },
+
+    "SVT": {
+        "emergent": {
+            "duration": 30,
+            "heart_rate": 200
+        },
+        "urgent": {
+            "duration": 30,
+            "heart_rate": 160
+        },
+        "reportable": {
+            "num_beat": 6,
+            "heart_rate": 101
+        }
+    },
+
+    "SVT_SYMPTOMATIC": {
+        "emergent": {
+            "duration": 30,
+            "heart_rate": 180
+        },
+        "urgent": {
+            "duration": 30,
+            "heart_rate": 160
+        },
+        "reportable": {
+            "num_beat": 6,
+            "heart_rate": 101
+        }
+    },
+
+    "VT": {
+        "emergent": [
+            {
+                "duration": 30,
+                "heart_rate": 150
+            },
+            {
+                "num_beat": 10,
+                "heart_rate": 200
+            }
+        ],
+        "urgent": {
+            "num_beat": 10,
+            "heart_rate": 150
+        },
+        "reportable": {
+            "num_beat": 4
+        }
+    },
+
+    "VT_SYMPTOMATIC": {
+        "emergent": [
+            {
+                "duration": 30,
+                "heart_rate": 150
+            },
+            {
+                "num_beat": 10,
+                "heart_rate": 200
+            }
+        ],
+        "urgent": {
+            "num_beat": 10
+        },
+        "reportable": {
+            "num_beat": 4
+        }
+    },
+
+    "BRADY": {
+        "emergent": {
+            "duration": 30,
+            "heart_rate": 30
+        },
+        "urgent": {
+            "duration": 10,
+            "heart_rate": 30
+        },
+        "reportable": {
+            "duration": 6,
+            "heart_rate": 40
+        }
+    },
+
+    "TACHY": {
+        "emergent": {
+            "duration": 30,
+            "heart_rate": 200
+        },
+        "urgent": {
+            "duration": 30,
+            "heart_rate": 180
+        },
+        "reportable": {
+            "duration": 6,
+            "heart_rate": 150
+        }
+    },
+
+     "TACHY_SYMPTOMATIC": {
+        "emergent": {
+            "duration": 30,
+            "heart_rate": 180
+        },
+        "urgent": {
+            "duration": 30,
+            "heart_rate": 180
+        },
+        "reportable": {
+            "duration": 6,
+            "heart_rate": 150
+        }
+    },
+
+    "PAUSE": {
+        "emergent": {
+            "duration": 6
+        },
+        "urgent": {
+            "duration": 4
+        },
+        "reportable": {
+            "duration": 3
+        }
+    }
+}

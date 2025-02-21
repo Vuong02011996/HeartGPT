@@ -4,8 +4,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 import numpy as np
 import pandas as pd
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog, QLabel, \
-    QComboBox, QFormLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog, QLabel, QComboBox, QFormLayout
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
 from PyQt5.QtGui import QIntValidator, QColor
 from PyQt5.QtWidgets import QLineEdit, QSlider, QHBoxLayout, QCheckBox
@@ -15,8 +14,9 @@ from scipy.io import savemat
 from scipy.signal import find_peaks
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
+
 # Assuming the model and other configurations are already set up
-model_config = 'PPG_PT'
+model_config = 'ECG_PT'
 block_size = 500
 shift_parameter = 100
 batch_size = 150
@@ -24,26 +24,27 @@ n_embd = 64
 n_head = 8
 n_layer = 8
 dropout = 0.2
+
 # change model directory here to where you have the models stored
-model_path_ppg = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_files/PPGPT_beat_5k_iters.pth"
+# model_path_ppg = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_files/PPGPT_beat_5k_iters.pth"
 # model_path_ppg_AF = "D:/HeartGPTModels/PPGPT_AF_1k_iters.pth"
 
-model_path_ecg = "D:/HeartGPTModels/ECGPT_560k_iters.pth"
+model_path_ecg = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_files/HeartGPT_finetune_beat_mitdb.pth"
+# model_path_ecg = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_files/ECGPT_560k_iters.pth"
 # model_path_ecg_AF = "D:/HeartGPTModels/ECGPT_AF_1k_iters.pth"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-if model_config == 'PPG_PT':
-    vocab_size = 102
-    model_path = model_path_ppg
+# if model_config == 'PPG_PT':
+#     vocab_size = 102
+#     model_path = model_path_ppg
     # model_path_AF = model_path_ppg_AF
-elif model_config == 'ECG_PT':
-    vocab_size = 101
-    model_path = model_path_ecg
+# elif model_config == 'ECG_PT':
+vocab_size = 101
+model_path = model_path_ecg
     # model_path_AF = model_path_ecg_AF
 
 # Initialize an empty list to store the weights matrices
 weights_matrices = []
-
 
 # Model definition
 class Head(nn.Module):
@@ -52,8 +53,7 @@ class Head(nn.Module):
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer('tril',
-                             torch.tril(torch.ones((block_size, block_size))))  # buffer means not updated by optimiser
+        self.register_buffer('tril', torch.tril(torch.ones((block_size, block_size))))  # buffer means not updated by optimiser
         self.dropout = nn.Dropout(dropout)
         self.weights_matrices = weights_matrices  # Reference to the external list
 
@@ -62,7 +62,7 @@ class Head(nn.Module):
         k = self.key(x)
         q = self.query(x)
         # compute attention weights
-        wei = q @ k.transpose(-2, -1) * C ** -0.5  # square root headsize # (B, T, C) @ (B, C, T) = B, T, T
+        wei = q @ k.transpose(-2, -1) * C**-0.5  # square root headsize # (B, T, C) @ (B, C, T) = B, T, T
         # for every batch, we will now have a T by T matrix giving us the affinities of each token
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         # the tril signifies a decoder block, future tokens cannot communicate with the past
@@ -72,11 +72,10 @@ class Head(nn.Module):
         v = self.value(x)
         out = wei @ v
 
-        # self.weights_matrices.append(wei.detach().cpu().numpy())  # Store the weights matrix in the list
-        # print(f"weights_matrices size: {np.array(self.weights_matrices).shape}")  # Print the full size of weights_matrices
+        #self.weights_matrices.append(wei.detach().cpu().numpy())  # Store the weights matrix in the list
+        #print(f"weights_matrices size: {np.array(self.weights_matrices).shape}")  # Print the full size of weights_matrices
 
         return out
-
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size, weights_matrices):
@@ -89,7 +88,6 @@ class MultiHeadAttention(nn.Module):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.dropout(self.proj(out))
         return out
-
 
 class FeedForward(nn.Module):
     def __init__(self, n_embd):
@@ -104,7 +102,6 @@ class FeedForward(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
 
 class Block(nn.Module):
     def __init__(self, n_embd, n_head, weights_matrices):
@@ -126,18 +123,18 @@ class NewHead(nn.Module):
     def __init__(self, n_embd):
         super().__init__()
         # feature extraction, patterns going from 64 dim to 1
-        self.linear1 = nn.Sequential(nn.Linear(n_embd, 1),
-                                     nn.Dropout(dropout))
+        self.linear1 = nn.Sequential(nn.Linear(n_embd,1),
+                                        nn.Dropout(dropout))
         self.Mpool = nn.Sequential(nn.Flatten(),
-                                   nn.MaxPool1d(500))
+                                    nn.MaxPool1d(500))
         self.SigM1 = nn.Sigmoid()
+
 
     def forward(self, x):
         x = self.linear1(x)
         x = self.SigM1(x)
 
         return x
-
 
 class HeartGPTModel(nn.Module):
     def __init__(self):
@@ -167,7 +164,9 @@ class HeartGPTModel(nn.Module):
 
 
 class PlotCanvas(FigureCanvas):
+    # Kế thừa từ FigureCanvas của matplotlib để vẽ đồ thị.
     def __init__(self, parent=None):
+        # tạo một Figure và một Axes.
         fig = Figure()
         self.axes1 = fig.add_subplot(211)  # First plot (Tokenised Input Data and Generated Output)
         self.axes2 = fig.add_subplot(212)  # Second plot (Model Output)
@@ -176,7 +175,7 @@ class PlotCanvas(FigureCanvas):
 
         self.toolbar = NavigationToolbar(self, parent)
         parent.layout.addWidget(self.toolbar)  # Add padding between plots
-
+        
         # Link the x-axes
         self.axes1.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self.axes2.callbacks.connect('xlim_changed', self.on_xlim_changed)
@@ -193,8 +192,7 @@ class PlotCanvas(FigureCanvas):
             self.axes1.clear()
             self.axes1.plot(input_data.flatten()[:num_samples], color='black', label='Tokenised Input Data')
             if len(output_data) > context_length:
-                self.axes1.plot(range(context_length, context_length + len(output_data) - context_length),
-                                output_data[context_length:num_samples], color='red')
+                self.axes1.plot(range(context_length, context_length + len(output_data) - context_length), output_data[context_length:num_samples], color='red')
             self.axes1.set_xlabel('Token Number')
             self.axes1.set_ylabel('Token\nValue')
             self.axes1.legend()
@@ -211,6 +209,7 @@ class PlotCanvas(FigureCanvas):
                     color = 'orange'
                 else:
                     color = 'green'
+
                 self.axes1.plot(peak, input_data.flatten()[peak], 'x', color=color, markersize=10)
 
             self.axes2.clear()
@@ -222,7 +221,16 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
 
+
+
+
+
+
+
+
+
 class Worker(QThread):
+    # Kế thừa từ QThread để thực hiện các tác vụ chạy nền.
     finished_signal = pyqtSignal(list)
 
     def __init__(self, model, example_context_tensor):
@@ -231,13 +239,14 @@ class Worker(QThread):
         self.example_context_tensor = example_context_tensor
         self.input_stitched = stitch_with_overlap(example_context_tensor.cpu().numpy())
         self.model_output = None  # Add this line
-
+    #  thực hiện một vòng lặp và phát tín hiệu update mỗi giây.
+    #  cửa sổ chính sẽ hiển thị một đồ thị và in ra các giá trị cập nhật từ luồng Worker mỗi giây.
     def run(self):
         outputs_list = []
         X_input = self.example_context_tensor
         for i in range(0, len(X_input), batch_size):
             # Get the current batch
-            batch = X_input[i:i + batch_size]
+            batch = X_input[i:i+batch_size]
 
             # Run the batch through the model
             with torch.no_grad():
@@ -246,17 +255,21 @@ class Worker(QThread):
             # Append the outputs, labels, and inputs to their respective lists
             outputs_list.append(outputs.detach().cpu().numpy())
 
-            # outputs_list.append(outputs)
+            #outputs_list.append(outputs)
 
-            # print(f"Batch {i//150 + 1}")
+            #print(f"Batch {i//150 + 1}")
+
 
         outputs_np = np.concatenate(outputs_list, axis=0)
-        # print(outputs_np.shape[0])
-        # print(outputs_np.shape[1])
-        outputs_np_reshape = outputs_np.reshape(outputs_np.shape[0], outputs_np.shape[1])
+        #print(outputs_np.shape[0])
+        #print(outputs_np.shape[1])
+        outputs_np_reshape = outputs_np.reshape(outputs_np.shape[0],outputs_np.shape[1])
         outputs_stitched = stitch_with_overlap(outputs_np_reshape)
         self.model_output = outputs_stitched.tolist()
         self.finished_signal.emit(self.model_output)
+
+
+
 
 
 class App(QMainWindow):
@@ -269,7 +282,8 @@ class App(QMainWindow):
         self.top = 100
         self.width = 800
         self.height = 600
-        self.model_config = 'PPG_PT'  # Always use PPG_PT
+        self.model_config = 'ECGPT'  # Always use PPG_PT
+        # gọi self.initUI() để thiết lập giao diện người dùng.
         self.initUI()
         self.first_model_done = False
 
@@ -277,14 +291,18 @@ class App(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
+        # Trong initUI, tạo một QWidget trung tâm và thiết lập layout.
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
         self.layout = QVBoxLayout(self.central_widget)
 
+        # Thêm một instance của PlotCanvas vào layout để hiển thị đồ thị.
         self.plot_canvas = PlotCanvas(self)
         self.layout.addWidget(self.plot_canvas)
 
+
+        # Tạo các nút bấm và nhãn, và kết nối các sự kiện của nút bấm với các phương thức tương ứng.
         form_layout = QFormLayout()
 
         self.layout.addLayout(form_layout)
@@ -303,6 +321,7 @@ class App(QMainWindow):
         self.probability_label = QLabel('Average Estimated Beat Confidence: ', self)
         self.layout.addWidget(self.probability_label)
 
+
     # Remove update_model_config method
     # def update_model_config(self):
     #     selected_model = self.model_selector.currentText()
@@ -314,13 +333,16 @@ class App(QMainWindow):
 
     def update_model_parameters(self):
         global vocab_size, model_path
-        if self.model_config == 'PPG_PT':
-            vocab_size = 102
-            model_path = model_path_ppg
-        # Remove ECG_PT configuration
+        # if self.model_config == 'PPG_PT':
+        #     vocab_size = 102
+        #     model_path = model_path_ppg
+        # # Remove ECG_PT configuration
         # elif self.model_config == 'ECG_PT':
         #     vocab_size = 101
         #     model_path = model_path_ecg
+
+        vocab_size = 101
+        model_path = model_path_ecg
 
     def save_attention_weights(self):
         options = QFileDialog.Options()
@@ -340,15 +362,17 @@ class App(QMainWindow):
             peaks_array[peaks] = properties['peak_heights']
 
             # Save the context, model output, and peaks array in a .mat file
-            savemat(output_file,
-                    {'context': averaged_context, 'model_output': model_output, 'peaks_array': peaks_array})
+            savemat(output_file, {'context': averaged_context, 'model_output': model_output, 'peaks_array': peaks_array})
 
             self.progress_label.setText(f'Saved to {output_file}')
 
+
+
+    # Không dùng 
     def update_slider_label(self, value):
         # Update the label with the current slider value
         self.slider_label.setText(str(value))
-
+    # Không dùng 
     def save_generated_tokens(self):
         options = QFileDialog.Options()
         options |= QFileDialog.ShowDirsOnly
@@ -361,8 +385,7 @@ class App(QMainWindow):
     def load_and_plot_data(self):
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
-        input_file, _ = QFileDialog.getOpenFileName(self, "Load Input CSV", "", "CSV Files (*.csv);;All Files (*)",
-                                                    options=options)
+        input_file, _ = QFileDialog.getOpenFileName(self, "Load Input CSV", "", "CSV Files (*.csv);;All Files (*)", options=options)
         if input_file:
             global weights_matrices
             weights_matrices = []
@@ -374,7 +397,7 @@ class App(QMainWindow):
             self.num_samples = input_data.shape[0]  # Store num_samples as an instance variable
             reshaped_data = []
             for i in range(0, self.num_samples, shift_parameter):
-                segment = input_data[i:i + 500]
+                segment = input_data[i:i+500]
                 segment = tokenize_biosignal(segment).flatten()
                 if len(segment) < 500:
                     segment = np.pad(segment, (0, 500 - len(segment)), 'constant')
@@ -398,21 +421,24 @@ class App(QMainWindow):
             averaged_input = averaged_input[:self.num_samples]
 
             self.plot_canvas.axes1.set_title(plot_title)
-            self.plot_canvas.plot(input_data=averaged_input.flatten(), output_data=[],
-                                  context_length=averaged_input.shape[0], num_samples=self.num_samples)
+            self.plot_canvas.plot(input_data=averaged_input.flatten(), output_data=[], context_length=averaged_input.shape[0], num_samples=self.num_samples)
 
+            # tạo một instance của Worker và kết nối tín hiệu update của nó với phương thức handle_update.
             self.worker = Worker(model, example_context_tensor)
             self.worker.finished_signal.connect(self.plot_output)
             self.worker.start()
 
             self.save_button.setEnabled(False)
 
+
+
+
+
     def plot_output(self, output):
         self.worker.model_output = output
         averaged_input = stitch_with_overlap(self.worker.example_context_tensor.cpu().numpy())
         num_samples = averaged_input.shape[0]
-        self.plot_canvas.plot(input_data=averaged_input.flatten()[:self.num_samples], output_data=output,
-                              context_length=averaged_input.shape[0], num_samples=self.num_samples)
+        self.plot_canvas.plot(input_data=averaged_input.flatten()[:self.num_samples], output_data=output, context_length=averaged_input.shape[0], num_samples=self.num_samples)
         self.plot_canvas.axes2.clear()
         self.plot_canvas.axes2.plot(output[:self.num_samples], color='blue', label='Model Output')
         self.plot_canvas.axes2.set_xlabel('Index')
@@ -437,8 +463,14 @@ class App(QMainWindow):
             category = "High"
             color = "green"
 
-        self.probability_label.setText(
-            f'Average Estimated Beat Confidence: <span style="color:{color}">{category}</span>')
+        self.probability_label.setText(f'Average Estimated Beat Confidence: <span style="color:{color}">{category}</span>')
+
+
+
+
+
+
+
 
 
 def tokenize_biosignal(data):
@@ -466,10 +498,10 @@ def tokenize_biosignal(data):
 
     return data_rounded
 
-
 def stitch_with_overlap(arr):
+    # kết hợp các đoạn tín hiệu có độ chồng lấn (overlap) để tạo ra một tín hiệu liên tục.
     N, width = arr.shape
-    overlap = 500 - shift_parameter  # Since each window overlaps by 400 samples (500 - shift)
+    overlap = 500-shift_parameter  # Since each window overlaps by 400 samples (500 - shift)
     step = width - overlap
     total_length = step * (N - 1) + width
     result = np.zeros(total_length)
@@ -487,9 +519,13 @@ def stitch_with_overlap(arr):
 
     return result
 
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = App()
     ex.show()
     sys.exit(app.exec_())
+
+    # Khởi tạo một đối tượng QApplication.
+    # Tạo một instance của class App.
+    # Hiển thị cửa sổ chính bằng cách gọi ex.show().
+    # Bắt đầu vòng lặp sự kiện của ứng dụng bằng sys.exit(app.exec_()).

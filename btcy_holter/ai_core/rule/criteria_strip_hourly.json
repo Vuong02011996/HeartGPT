@@ -1,0 +1,119 @@
+{
+    "AFIB": {
+        "emergent": {
+            "max_hr": {
+                "duration": 27,
+                "heart_rate": 180
+            },
+            "min_hr": {
+                "duration": 27,
+                "heart_rate": 30
+            }
+        },
+        "urgent": {
+            "max_hr": {
+                "duration": 27,
+                "heart_rate": 150
+            },
+            "min_hr": {
+                "duration": 7,
+                "heart_rate": 30
+            }
+        }
+    },
+
+    "AVB2": {
+        "emergent": {
+            "duration": 8,
+            "heart_rate": 30
+        },
+        "urgent": {
+            "duration": 8,
+            "heart_rate": 40
+        }
+    },
+
+    "AVB3": {
+        "emergent": {
+            "duration": 7,
+            "heart_rate": 30
+        }
+    },
+
+    "SVT": {
+        "emergent": {
+            "duration": 27,
+            "heart_rate": 180
+        },
+        "urgent": {
+            "duration": 27,
+            "heart_rate": 160
+        },
+        "reportable": {
+            "num_beat": 6,
+            "heart_rate": 101
+        }
+    },
+
+    "VT": {
+        "emergent": [
+            {
+                "duration": 27,
+                "heart_rate": 150
+            },
+            {
+                "num_beat": 10,
+                "heart_rate": 200
+            }
+        ],
+        "urgent": {
+            "num_beat": 10,
+            "heart_rate": 150
+        },
+        "reportable": {
+            "num_beat": 4
+        }
+    },
+
+    "BRADY": {
+        "emergent": {
+            "duration": 27,
+            "heart_rate": 30
+        },
+        "urgent": {
+            "duration": 7,
+            "heart_rate": 30
+        },
+        "reportable": {
+            "duration": 6,
+            "heart_rate": 40
+        }
+    },
+
+    "TACHY": {
+        "emergent": {
+            "duration": 27,
+            "heart_rate": 200
+        },
+        "urgent": {
+            "duration": 27,
+            "heart_rate": 180
+        },
+        "reportable": {
+            "duration": 6,
+            "heart_rate": 150
+        }
+    },
+
+    "PAUSE": {
+        "emergent": {
+            "duration": 6
+        },
+        "urgent": {
+            "duration": 4
+        },
+        "reportable": {
+            "duration": 3
+        }
+    }
+}

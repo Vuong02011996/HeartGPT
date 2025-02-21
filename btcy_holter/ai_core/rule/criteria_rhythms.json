@@ -1,0 +1,37 @@
+{
+    "AFIB": {
+        "duration" : 4
+    },
+    "VT": {
+        "num_beat": 4,
+        "heart_rate": 100,
+        "duration": 2.4,
+        "symbol_valid": ["V"],
+        "max_consecutive_beat_count": 3
+    },
+    "AVB3": {
+        "heart_rate": 40,
+        "duration" : 6
+    },
+    "AVB2": {
+        "heart_rate": 40,
+        "duration" : 6
+    },
+    "SVT": {
+        "num_beat": 6,
+        "heart_rate": 100,
+        "duration": 3.6,
+        "symbol_valid": ["S"],
+        "max_consecutive_beat_count": 6
+    },
+    "AVB1": {
+        "heart_rate": 40,
+        "duration" : 6
+    },
+    "SINUS": {
+        "duration" : 6
+    },
+    "OTHER": {
+        "duration": 10
+    }
+}

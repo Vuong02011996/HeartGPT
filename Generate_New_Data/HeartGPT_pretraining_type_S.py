@@ -3,61 +3,103 @@ import torch.nn as nn
 from torch.nn import functional as F
 import scipy.io
 import numpy as np
-import pandas as pd
+import time
+from sklearn.model_selection import train_test_split
 
-# The following code is adapted from a tutorial by Andrej Kapathy, available at https://github.com/karpathy/nanoGPT
+# Harry Davies 19_09_2024
+
+# The following code is adapted from a tutorial by Andrej Kapathy, available at https://github.com/karpathy/ng-video-lecture
 # The explaination behind this code and the model files can be found in the paper "Interpretable Pre-Trained Transformers for Heart Time-Series Data"
 # available at https://arxiv.org/abs/2407.20775
 
-model_config = 'ECG_PT' #switch between 'ECG_PT' and 'PPG_PT'
+# eval_interval = 2000
+# save_interval = 20000 #how often the model is checkpointed
+# eval_iters = 200
+# batch_size = 64 # sequences we process in parellel
+# max_iters = 1000000
+eval_interval = 20
+save_interval = 200 #how often the model is checkpointed
+eval_iters = 20
+batch_size = 64 # sequences we process in parellel
+max_iters = 1000
+
 
 block_size = 500 # this is context length
-n_embd = 64
+learning_rate = 3e-04
+n_embd = 64 # 384 / 6 means every head is 64 dimensional
 n_head = 8
 n_layer = 8
 dropout = 0.2
-model_path_ppg = "D:/HeartGPTModels/PPGPT_500k_iters.pth"
-model_path_ecg = "D:/HeartGPTModels/ECGPT_560k_iters.pth"
+vocab_size = 101
 
+# GPU is necessary. Training of 8 head, 8 layer model and 500 context length was possible with 12GB VRAM
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-if model_config == 'PPG_PT':
-    vocab_size = 102 #102 for PPGPT, 101 for ECGPT
-    model_path = model_path_ppg
-    context_path = 'D:/HeartGPTModels/example_context_PPG.csv'
-elif model_config == 'ECG_PT':
-    vocab_size = 101 # (0 - 100)
-    model_path = model_path_ecg
-    context_path = 'D:/HeartGPTModels/example_context_ECG.csv'
+path_save = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_ECG/'
+path_model_save = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Generate_New_Data/'
+types_beat = [1]
+symbols = ['S']
+split = 'train'
+for i, type_beat in enumerate(types_beat):
+    all_windows = np.load(path_save + f'all_windows_{split}_{symbols[i]}.npy')
+    all_labels = np.load(path_save + f'all_labels_{split}_{symbols[i]}.npy')
+    print(f'Type_{symbols[i]} have {len(all_labels)} sample')
+
+data = all_windows
+labels = all_labels
+# Generate a permutation of indices
+indices = np.random.permutation(data.shape[0])
+# Shuffle data and labels using the generated indices
+data = data[indices]
+labels = labels[indices]
+
+# Split the data: 90% for training, 10% for testing
+train_data, test_data, train_labels, test_labels = train_test_split(data, labels, test_size=0.1, random_state=42)
 
 
-def tokenize_biosignal(data):
+"""
+How to generate S
+Because have 500 before point will detect next point ...
 
-    # Get the shape of the data
-    shape = data.shape
++ Concat 500 peak S => No
++ Choice file mitdb have a lot of S 222, 232 -> generate
 
-    # If the data is a column vector, reshape it to a row vector
-    if len(shape) > 1 and shape[0] > shape[1]:
-        data = data.T
 
-    # If there are more than 500 data points, select the last 500
-    if data.shape[1] > 500:
-        data = data[:, -500:]
+"""
 
-    # Scale the values between 0 and 1
-    data_min = np.min(data)
-    data_max = np.max(data)
-    data_scaled = (data - data_min) / (data_max - data_min)
+def get_batch(split):
+    data = train_data  if split == 'train' else test_data
+    # creates two random indices. One to pick the subject, and one to pick the position in the trace.
+    # traces for each subject were never less than 1000 samples. blocksize+ix2 can never be longer than the trace.
+    # ix = torch.randint(data.shape[0], (batch_size,))
+    # ix2 = torch.randint(500, (1,))
+    # x = torch.stack([data[i,ix2:ix2+block_size] for i in ix])
+    # y = torch.stack([data[i,ix2+1:ix2+block_size+1] for i in ix])
+    # x, y = x.to(device), y.to(device)
 
-    # Multiply by 100
-    data_scaled *= 100
+    ix = torch.randint(data.shape[0], (batch_size,))
+    # ix2 = torch.randint(500, (1,))
+    x = torch.stack([torch.tensor(data[i], dtype=torch.long) for i in ix])
+    y = torch.stack([torch.tensor(labels[i], dtype=torch.long) for i in ix])
+    x, y = x.to(device), y.to(device)
+    return x, y
 
-    # Round to the nearest integer
-    data_rounded = np.round(data_scaled)
 
-    return data_rounded
+@torch.no_grad()
+def estimate_loss():
+    out = {}
+    model.eval()
+    for split in ['train', 'val']:
+        losses = torch.zeros(eval_iters)
+        for k in range(eval_iters):
+            X, Y = get_batch(split)
+            logits, loss = model(X, Y)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
 
-#model definition
+
 class Head(nn.Module):
 
     def __init__(self, head_size):
@@ -65,23 +107,25 @@ class Head(nn.Module):
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones((block_size,block_size)))) #buffer means not updated by optimiser
+        # self.register_buffer('tril', torch.tril(torch.ones((block_size,block_size)))) #buffer means not updated by optimiser
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
+        #start = time.time()
         B, T, C = x.shape
         k = self.key(x)
         q = self.query(x)
-        # compute attention weights
+        # compute attention scores (affinities)
         wei = q @ k.transpose(-2, -1) * C**-0.5 # square root headsize # (B, T, C) @ (B, C, T) = B, T, T
         # for every batch, we will now have a T by T matrix giving us the affinities of each token
-        wei = wei.masked_fill(self.tril[:T,:T] == 0, float('-inf'))
+        # wei = wei.masked_fill(self.tril[:T,:T] == 0, float('-inf'))
         # the tril signifies a decoder block, future tokens cannot communicate with the past
-        wei = F.softmax(wei, dim=-1)# weights corresponding to the update of each token sum to 1
-
+        wei = F.softmax(wei, dim=-1)# all attention weights sum to 1 for updating a single token
         wei = self.dropout(wei)
         v = self.value(x)
         out = wei @ v
+        #end = time.time()
+        #print(start-end)
         return out
 
 
@@ -135,16 +179,16 @@ class Block(nn.Module):
         return x
 
 
-# define the main heart_GPT model class
-class Heart_GPT_Model(nn.Module):
+
+# create heart GPT class
+class HeartGPTModel(nn.Module):
 
     def __init__(self):
         super().__init__()
-
         # table needs to be vocab size by vocab size, to look up probability of next token given this token
         self.token_embedding_table = nn.Embedding(vocab_size,n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head = n_head) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embd) # final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
@@ -154,13 +198,12 @@ class Heart_GPT_Model(nn.Module):
         #idx is batch, targets is time
         tok_emb = self.token_embedding_table(idx) #(B, T, vocab_size) which is batch, time, channel
         pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # T, C (integers from 0 to T-1)
-
         x = tok_emb + pos_emb # B, T, C
         x = self.blocks(x) # B, T, C
         x = self.ln_f(x) # B, T, C
 
         logits = self.lm_head(x)
-        #channel is vocab size, so in this case 102 or 101
+        #channel is vocab size, so in this case 65
 
         if targets is None:
             loss = None
@@ -189,43 +232,42 @@ class Heart_GPT_Model(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
         return idx
 
-model = Heart_GPT_Model()
-
-model.load_state_dict(torch.load(model_path))
-model.eval()
+model = HeartGPTModel()
 m = model.to(device)
+# random loss at this point would be -log(1/65)
 
-# load in context
-#if it is PPG, make sure it is 50Hz sample frequecy. If ECG, 100Hz.
+#AdamW
+optimizer  = torch.optim.AdamW(m.parameters(), lr=learning_rate)
 
-# Load the CSV file into a DataFrame
-df = pd.read_csv(context_path, header=None)
-# Convert the DataFrame to a numpy array
-data = df.values
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-data_tokenised = tokenize_biosignal(data)
-example_context_tensor = torch.tensor(data_tokenised, dtype=torch.long, device = device)
+# counter the number of model parameters to be trained
+num_parameters = count_parameters(model)
+print(f"The model has {num_parameters} trainable parameters.")
+
+for iter in range(max_iters):
+    
+    if iter % eval_interval == 0:
+        losses = estimate_loss()
+        print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+
+    if iter % save_interval == 0:
+        #model_path for checkpointing
+        model_path = f"{path_model_save}/S_Generate_{n_embd}_{n_head}_{n_layer}_{block_size}_{max_iters}_{iter}.pth"
+        torch.save(model.state_dict(), model_path)
+    #get batch
+    x_batch, y_batch = get_batch('train')
+
+    # loss evaluation
+    logits, loss = m(x_batch, y_batch)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
 
 
-# now prompt the model with the context
-print('Generating new tokens')
-output = (m.generate(example_context_tensor, max_new_tokens=500)[0].tolist())
 
-# convert output to DataFrame and save as csv
-output_df = pd.DataFrame(output)
-output_df.to_csv('D:/HeartGPTModels/model_output.csv', index=False, header=False)
 
-data_tokenised = np.transpose(data_tokenised).tolist()
-# convert data_tokenised to DataFrame and save as csv
-data_tokenised_df = pd.DataFrame(data_tokenised)
-# convert the dataframe to integer
-data_tokenised_df = data_tokenised_df.astype(int)
-data_tokenised_df.to_csv('D:/HeartGPTModels/tokenised_context.csv', index=False, header=False)
-print('Generation saved to CSV')
 
-"""
-I have problem 
-X = [[1, 1, 3, 3]]
-"""
 
 

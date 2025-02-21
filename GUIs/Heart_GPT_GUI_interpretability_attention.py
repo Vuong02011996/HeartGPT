@@ -20,8 +20,10 @@ n_head = 8
 n_layer = 8
 dropout = 0.2
 # change model directory here to where you have the models stored
-model_path_ppg = "D:/HeartGPTModels/PPGPT_500k_iters.pth"
-model_path_ecg = "D:/HeartGPTModels/ECGPT_560k_iters.pth"
+# model_path_ppg = "D:/HeartGPTModels/PPGPT_500k_iters.pth"
+# model_path_ecg = "D:/HeartGPTModels/ECGPT_560k_iters.pth"
+model_path_ppg = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_files/PPGPT_500k_iters.pth"
+model_path_ecg = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Heatbeat_pretrained_64_8_8_500_100000_99999_train.pth"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if model_config == 'PPG_PT':
