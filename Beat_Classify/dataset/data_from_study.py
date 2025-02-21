@@ -301,13 +301,13 @@ def main():
     print("Testing set:", list_study_test)
     # I convert list_study_test to numpy array to use np.save , save list_study_test
     list_study_test = np.array(list_study_test)
-    np.save('/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/list_study_test.npy', list_study_test)
+    np.save(path_project + '/Data/list_study_test.npy', list_study_test)
     # How to load list_study_test and check it
-    list_study_test_save = np.load('/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/list_study_test.npy')
+    list_study_test_save = np.load(path_project + '/Data/list_study_test.npy')
     # How to check file list_study_test_save the same list_study_test
     assert (list_study_test == list_study_test_save).all()
 
-    path_save = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_Study/'
+    path_save = path_project + '/Data/Data_Study/'
     # Check if the folder save data exists
     if os.path.exists(path_save):
         shutil.rmtree(path_save)
@@ -320,4 +320,5 @@ def main():
 
 if __name__ == '__main__':
     folder_data = "/media/server2/MegaDataset/Vuong_Data/strips/"
+    path_project = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT"
     main()
