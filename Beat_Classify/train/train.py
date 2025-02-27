@@ -7,7 +7,11 @@ import time
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 import os
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
+from Beat_Classify.inference.transformer_infer_one_file_ecg57 import eval_ec57
 
 # Harry Davies 19_09_2024
 
@@ -19,7 +23,7 @@ eval_interval = 200 # 2000, sau bao nhieu epoch ites, thi danh gia loss
 # save_interval = 10000 # 20000 #how often the model is checkpointed
 eval_iters = 20  # 200 so lan data lap de danh gia loss
 batch_size = 32 # sequences we process in parellel
-max_iters = 500000# 1000000
+max_iters = 100000# 1000000
 
 block_size = 500 # this is context length
 learning_rate = 3e-04
@@ -46,12 +50,18 @@ vocab_size = 1001
 num_classes = 3
 
 path_model = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/'
+path_model_ec57 = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_EC57/'
+if not os.path.exists(path_model):
+    os.makedirs(path_model)
+if not os.path.exists(path_model_ec57):
+    os.makedirs(path_model_ec57)
+    
 path_save ='/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_Study/'
 
-types_beat = [0, 1, 1, 2, 2, 2, 2]
-symbols = ['N','S','S', 'V', 'V', 'V', 'V']
+types_beat = [0, 1, 2, 2]
+symbols = ['N','S', 'V', 'V']
 split = 'train'
-number_type_N = 500000
+number_type_N = 300000
 data = None
 labels = None
 for i, type_beat in enumerate(types_beat):
@@ -277,6 +287,12 @@ if __name__ == '__main__':
 
     loss_train_max = 10
     loss_test_max = 10
+    V_se = 0
+    V_p = 0
+
+    # Initialize lists to store losses
+    train_losses = []
+    val_losses = []
 
     # Iterate through each fold
     fold = 1
@@ -285,32 +301,67 @@ if __name__ == '__main__':
         train_labels, test_labels = labels[train_index], labels[test_index]
         print("Training on fold: ", fold)
         for iter in range(max_iters):
-            if iter % eval_interval == 0:
+            if iter % eval_interval == 0 and iter > 0:
                 losses = estimate_loss()
                 print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
                 # print(f"step {iter}: train loss {losses['train']:.4f}")
 
-            # if iter % save_interval == 0 or iter == max_iters-1:
-            # if iter == max_iters-1:
-            # model_path for checkpointing
-            if losses['val'] < loss_test_max and losses['train'] < loss_train_max:
-                # Delete the previous model
-                model_path = f"{path_model}Model_beat_classify_study_data_{n_embd}_{n_head}_{n_layer}_{block_size}_{max_iters}.pth"
-                if os.path.exists(model_path):
-                    os.remove(model_path)
-                torch.save(model.state_dict(), model_path)
-                loss_train_max = losses['train']
-                loss_test_max = losses['val']
+                # Append losses to lists
+                train_losses.append(losses['train'])
+                val_losses.append(losses['val'])
+
+
+                # model_path for checkpointing
+                if losses['val'] < loss_test_max and losses['train'] < loss_train_max:
+                    # Delete the previous model
+                    model_path = f"{path_model}Model_beat_classify_study_data_{n_embd}_{n_head}_{n_layer}_{block_size}_{max_iters}.pth"
+                    if os.path.exists(model_path):
+                        os.remove(model_path)
+                    torch.save(model.state_dict(), model_path)
+                    loss_train_max = losses['train']
+                    loss_test_max = losses['val']
+
+
+                model_path_ec57 = f"{path_model_ec57}Model_beat_classify_study_data_{n_embd}_{n_head}_{n_layer}_{block_size}_{max_iters}_{iter}.pth"
+                torch.save(model.state_dict(), model_path_ec57)
+                gross_values = eval_ec57(model_path_ec57)
+                if int(gross_values[2]) > V_se and int(gross_values[3]) > V_p:
+                    #No previous model_path_ec57 maybe not iter - 1 so I will delete all model_path_ec57 except current model_path_ec57
+                    for file in os.listdir(path_model_ec57):
+                        print("current model_path_ec57: ", model_path_ec57)
+                        if os.path.join(path_model_ec57, file) != model_path_ec57:
+                            print("previous model_path_ec57: ", file)
+                            os.remove(os.path.join(path_model_ec57, file))
+                            print(f"{file} has been deleted.")
+                    V_se = int(gross_values[2])
+                    V_p = int(gross_values[3])
+                else:
+                    os.remove(model_path_ec57)
+                    print(f"Vse={V_se}; V_p={V_p} => {model_path_ec57} has been deleted.")
 
             # get batch
             x_batch, y_batch = get_batch_ecg('train')
-
             # loss evaluation
             logits, loss = m(x_batch, y_batch)
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
         fold += 1
+
+        # Plot the losses
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(val_losses, label='Validation Loss')
+    plt.xlabel('Evaluation Interval')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    # Save the figure
+    plt.savefig('training_validation_loss.png')
+
+    # Optionally, also display the figure
+    plt.show()
+    print("Done")
 
 
 

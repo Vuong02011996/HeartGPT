@@ -1,18 +1,10 @@
 # 1. Model classify focus to beat type V
 ## Training V1 and check result - for study data
-+ From 128485 records(event), QRS: 1 779 483 beat, V: 122597, S: 225754
-```
-Type_N have 1278294 sample
-Type_S have 202285 sample
-Type_V have 109746 sample
-The model has 558723 trainable parameters.
-```
 + Process: data - train - infer
   + Prepare data
   + Training
   + Inference in mitdb ec57
-  + Report result ec57 data study 2024 
-
+  + Report result ec57 data study 2024
 
 + Compare result:
   + Report data study 2024 model in server
@@ -25,6 +17,8 @@ The model has 558723 trainable parameters.
     Summary of results from 128485 records
 ```
 
+
+
 ## Build process auto update new data and training
 
 
@@ -32,7 +26,7 @@ The model has 558723 trainable parameters.
 + Performance 15s in 1hour -> 
   + Duplicate model the same 2 3 camera one model
   + Calculator memory GPU using in tf-serving
-  + 
+
 + Algorithm
 + Model with data VietNam
 + Different request from doctor VietNam
@@ -43,3 +37,28 @@ The model has 558723 trainable parameters.
 # 3. AI on device
 + For detect event realtime on ARM
 + Replace HES 
+
+`Always Solve Probem`
+# Week 1 27-28/2
+## Model AI(N -V):
+  + Read more tip training with transformer/ Using available Function/ Back normalize , ... how to decrease loss.
+  + Increase more data for V, S;
+    + /media/server2/Data_2T/Beat_classification/Data/Collection_20231002/
+    + /media/server2/MegaDataset/BACKUP/CollectPortalData/TechnicianComments/portal_data_comments/
+    + /media/server2/MegaDataset/BACKUP/QUERRY_DATA_DUYANH/Collection_20231018/
+  + Unbalance data problem.
+    + Collect more V data, get random N the same number of V. S follow.
+  + Show attention in result model. 
+
+## Projects BTCY - OCTO:
+  + How to deploy new code in each project.
+    + Holter library
+    + Holter processor/ hourly analyzer.
+  + How to deploy new model AI to TF server(local-docker/AWS)
+
+  + Performance :
+    + In each step of process hourly if two step have the same time, using thread for two it step.
+
+  + Read more code in each project.
+    + Ask Function all sub code not understanding.
+    + Ask Flow code.

@@ -5,6 +5,9 @@ import numpy as np
 import wfdb as wf
 from sklearn.preprocessing import minmax_scale  # for rescaling
 from wfdb.processing import resample_sig
+import os
+from glob import glob
+from Beat_Classify.inference.ec57_command import run_bxb, run_sumstats
 
 from Beat_Classify.dataset.data_from_study import plot_signal
 from Beat_Classify.dataset.data_from_study import butter_bandpass_filter
@@ -19,9 +22,9 @@ n_head = 8
 n_layer = 8
 dropout = 0.2
 num_classes = 3
-vocab_size = 2001 # (0 - 100)
+vocab_size = 1001 # (0 - 100)
 
-model_path = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Model_beat_classify_study_data_64_8_8_500_500000_test.pth"
+model_path = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Model_beat_classify_study_data_64_8_8_500_500000.pth"
 # model_path = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Heatbeat_pretrained_128_16_16_500_100_99_train_222.pth"
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -183,9 +186,6 @@ class Heart_GPT_Model(nn.Module):
 
 model = Heart_GPT_Model()
 
-model.load_state_dict(torch.load(model_path))
-model.eval()
-m = model.to(device)
 
 def inference_one_file_v1(file_name, batch_size_infer):
     sampling_rate = 100
@@ -284,7 +284,7 @@ def inference_one_file_v1(file_name, batch_size_infer):
     return r_peaks, total_symbol, sampling_rate
 
 
-def inference_one_file_v2(file_name, batch_size_infer):
+def inference_one_file_v2(file_name, model_training, batch_size_infer):
     sampling_rate = 100
     # Read data
     signal = wf.rdrecord(file_name, channels=[0]).p_signal[:, 0]
@@ -339,24 +339,30 @@ def inference_one_file_v2(file_name, batch_size_infer):
 
     signals = []
     labels = []
+    index_remove_r_peaks = []
+
     for i in range(len(r_peaks)):
         if i == 0 or i == len(r_peaks) - 1:
+            index_remove_r_peaks.append(i)
             continue
 
         if categories[i] == 4:  # remove AAMI Q class
+            index_remove_r_peaks.append(i)
             continue
         window_peak = signal[max(0, r_peaks[i] - before): min(r_peaks[i], len(signal)) + after]
         # if categories[i] == 1:
         #     plot_signal(window_peak)
         if len(window_peak) != before + after:
+            index_remove_r_peaks.append(i)
             continue
 
-        plot_signal(window_peak)
+        # plot_signal(window_peak)
 
         signals.append(window_peak)
         labels.append(categories[i])
     signals = np.asarray(signals)
     labels = np.asarray(labels)
+    r_peaks = np.delete(r_peaks, index_remove_r_peaks)
 
     y_pred = None
 
@@ -368,27 +374,103 @@ def inference_one_file_v2(file_name, batch_size_infer):
             data_tokenised = torch.tensor(signals[i:i + batch_size_infer, :], dtype=torch.long, device=device)
         # data_tokenised = torch.tensor(data_with_indices, dtype=torch.long, device=device)
         # argmax_output = m.classified(data_tokenised)[0].tolist()
-        argmax_output = m.classified(data_tokenised)
+        argmax_output = model_training.classified(data_tokenised)
         if y_pred is None:
             y_pred = argmax_output
         else:
             y_pred = np.concatenate((y_pred, argmax_output))
-        print(argmax_output)
+        # print(argmax_output)
         i += batch_size_infer
 
     label_map = {0: 'N', 1: 'S', 2: 'V', 3: 'F'}
     total_symbol = [label_map[num] for num in y_pred]
 
+    # save_path = file_name.split('/')[-1]
+    save_path = os.path.dirname(file_name)
+    eval_bxb = True
+    if eval_bxb:
+        wf.wrann(
+            record_name=str(file_name.split('/')[-1]),
+            extension='ai',
+            sample=np.asarray(r_peaks, dtype=int),
+            symbol=np.asarray(total_symbol),
+            # fs=fs_origin,
+            fs=sampling_rate,
+            write_dir=save_path
+        )
+
     return r_peaks, total_symbol, sampling_rate
 
 
+def eval_ec57(model_path_ec57):
+    model.load_state_dict(torch.load(model_path_ec57))
+    model.eval()
+    model_training = model.to(device)
+    print(f"Eval model name: {model_path_ec57}")
+
+    # Remove result if exist
+    save_log_path = '/home/server2/Desktop/Vuong/Data/PhysionetData/'
+    list_files = [i for i in glob(save_log_path + "/*")]
+    for file in list_files:
+        if "_report_line.out" in file:
+            os.remove(file)
+        if "_sd.out" in file:
+            os.remove(file)
+        if "_report_standard.out" in file:
+            os.remove(file)
+
+    ref_ext = 'ai'
+    report_line_file = os.path.join(save_log_path, f"{ref_ext}_report_line.out")
+    sd_file = os.path.join(save_log_path, f"{ref_ext}_sd.out")
+    report_standard_file = os.path.join(save_log_path, f"{ref_ext}_report_standard.out")
+
+    path2db = '/home/server2/Desktop/Vuong/Data/PhysionetData/mitdb'
+    file_names = glob(path2db + '/*.dat')
+    # Get rid of the extension
+    # file_names = [p[:-4] for p in file_names
+    #               if os.path.basename(p)[:-4] not in ['104', '102', '107', '217', 'bw', 'em', 'ma', '2202', '8205']
+    #               # if basename(p)[:-4] in ['100', '101']
+    #               if '_200hz' not in os.path.basename(p)[:-4]]
+    file_names = sorted(file_names)
+    for record in file_names[:]:
+        print(f"Process in record {record}")
+        if os.path.basename(record)[:-4] in ['104', '102', '107', '217', 'bw', 'em', 'ma', '2202', '8205']:
+            continue
+        if '_200hz' in os.path.basename(record)[:-4]:
+            continue
+        record = record[:-4]
+        inference_one_file_v2(record, model_training, batch_size_infer=20)
+
+        info_bxb = {
+            "report_line_file": report_line_file,
+            "sd_file": sd_file,
+            "report_standard_file": report_standard_file,
+            "save_path": path2db,
+            "filename": str(record.split('/')[-1]),
+            "ref_ext": ref_ext
+        }
+        # Run bxb for each event
+        run_bxb(info_bxb)
+
+    sumstats_output = run_sumstats(report_line_file)
+    if sumstats_output:
+        with open(report_line_file, 'w') as f:
+            f.write(sumstats_output)
+
+    gross_values = []
+
+    with open(report_line_file, 'r') as file:
+        for line in file:
+            if line.startswith("Gross"):
+                # Split the line and replace '-' with '0'
+                parts = line.split()
+                gross_values = [float(value.replace('-', '0')) for value in parts[1:]]
+                break
+
+    print(gross_values)
+    return gross_values
 if __name__ == '__main__':
-    record = '/home/server2/Desktop/Vuong/Data/PhysionetData/mitdb/100'
-    inference_one_file_v2(record, batch_size_infer=20)
-
-
-
-
+    eval_ec57()
 
 """
 """
