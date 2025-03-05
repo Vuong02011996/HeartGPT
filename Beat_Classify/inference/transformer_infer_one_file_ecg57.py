@@ -16,12 +16,12 @@ from Beat_Classify.dataset.data_from_study import butter_bandpass_filter
 # The explaination behind this code and the model files can be found in the paper "Interpretable Pre-Trained Transformers for Heart Time-Series Data"
 # available at https://arxiv.org/abs/2407.20775
 
-block_size = 500 # this is context length
+block_size = 30 # this is context length
 n_embd = 64
 n_head = 8
 n_layer = 8
 dropout = 0.2
-num_classes = 3
+num_classes = 2
 vocab_size = 1001 # (0 - 100)
 
 model_path = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Model_beat_classify_study_data_64_8_8_500_500000.pth"
@@ -107,6 +107,7 @@ class Block(nn.Module):
         x = x + self.ffwd(self.ln2(x))
         return x
 
+# criterion=nn.BCELoss()
 
 # define the main heart_GPT model class
 class Heart_GPT_Model(nn.Module):
@@ -286,6 +287,9 @@ def inference_one_file_v1(file_name, batch_size_infer):
 
 def inference_one_file_v2(file_name, model_training, batch_size_infer):
     sampling_rate = 100
+    # before, after = 250, 250
+    before, after = 12, 18
+
     # Read data
     signal = wf.rdrecord(file_name, channels=[0]).p_signal[:, 0]
     annotation = wf.rdann(file_name, extension="atr")
@@ -327,7 +331,6 @@ def inference_one_file_v2(file_name, model_training, batch_size_infer):
     categories = [AAMI[label] for label in labels]
 
     # heartbeat segmentation interval
-    before, after = 250, 250
     # Resample to sampling_rate
     signal = butter_bandpass_filter(signal, 1, 40, 250)
     signal, _ = resample_sig(signal, fs_origin, sampling_rate)
@@ -342,6 +345,11 @@ def inference_one_file_v2(file_name, model_training, batch_size_infer):
     index_remove_r_peaks = []
 
     for i in range(len(r_peaks)):
+
+        if categories[i] not in [0, 2]:
+            index_remove_r_peaks.append(i)
+            continue
+
         if i == 0 or i == len(r_peaks) - 1:
             index_remove_r_peaks.append(i)
             continue
@@ -382,7 +390,8 @@ def inference_one_file_v2(file_name, model_training, batch_size_infer):
         # print(argmax_output)
         i += batch_size_infer
 
-    label_map = {0: 'N', 1: 'S', 2: 'V', 3: 'F'}
+    # label_map = {0: 'N', 1: 'S', 2: 'V', 3: 'F'}
+    label_map = {0: 'N', 1: 'V'}
     total_symbol = [label_map[num] for num in y_pred]
 
     # save_path = file_name.split('/')[-1]

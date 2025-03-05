@@ -25,7 +25,7 @@ eval_iters = 20  # 200 so lan data lap de danh gia loss
 batch_size = 32 # sequences we process in parellel
 max_iters = 100000# 1000000
 
-block_size = 500 # this is context length
+block_size = 30 # this is context length
 learning_rate = 3e-04
 n_embd = 64 # 384 / 6 means every head is 64 dimensional
 n_head = 8
@@ -47,7 +47,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 vocab_size = 1001
 
 # out_features
-num_classes = 3
+num_classes = 2
 
 path_model = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/'
 path_model_ec57 = '/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model_EC57/'
@@ -56,12 +56,12 @@ if not os.path.exists(path_model):
 if not os.path.exists(path_model_ec57):
     os.makedirs(path_model_ec57)
     
-path_save ='/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_Study/'
+path_save ='/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_Study_N_V/'
 
-types_beat = [0, 1, 2, 2]
-symbols = ['N','S', 'V', 'V']
+types_beat = [0, 1]
+symbols = ['N','V']
 split = 'train'
-number_type_N = 300000
+number_type_N = 130000
 data = None
 labels = None
 for i, type_beat in enumerate(types_beat):
@@ -196,7 +196,22 @@ class Block(nn.Module):
         return x
 
 
+
+# # Number of samples for each class
+# num_samples = np.array([1278294, 202285, 109746])
+
+# # Calculate class weights
+# class_weights = 1. / num_samples
+# class_weights = class_weights / class_weights.sum() * len(num_samples)
+
+# # Convert class weights to a tensor
+# class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
+
+# # Define the loss function with class weights
+# criterion = nn.CrossEntropyLoss(weight=class_weights)
+
 criterion=nn.CrossEntropyLoss()
+# criterion=nn.BCELoss()
 # create heart GPT class
 class HeartGPTModel(nn.Module):
 

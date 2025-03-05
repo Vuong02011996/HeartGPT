@@ -111,8 +111,8 @@ def plot_info_event(ecg_signal, beats, symbols, start_highlight, stop_highlight,
 
 
 def get_result_from_technical(file):
-    before, after = 250, 250
-    extend_signal = 500
+    before, after = 12, 18
+    extend_signal = 30
     vocab_size = 1000
     sampling_rate = 100
     window_peaks = []
@@ -202,6 +202,9 @@ def get_result_from_technical(file):
 
 
     for i in range(len(r_peaks)):
+        if symbols[i] not in ['N', 'V']:
+            print("symbol remove", symbols[i])
+            continue
         if r_peaks[i] - extend_signal < 0 or r_peaks[i] + extend_signal >= len(signal):
             continue
         window_peak = signal[r_peaks[i] - before : r_peaks[i] + after]
@@ -278,8 +281,8 @@ def process_and_saved_data(list_study_train, path_save, split):
                 all_windows_train = np.concatenate((all_windows_train, window_peaks_study), axis=0)
                 all_labels_train = np.concatenate((all_labels_train, labels_study), axis=0)
     # unique_peaks = set(all_labels_train)
-    types_beat = [0, 1, 2]
-    symbols = ['N', 'S', 'V']
+    types_beat = [0, 1]
+    symbols = ['N', 'V']
     for i, type_beat in enumerate(types_beat):
         # how to get all index in array all_labels_train have value = s
         all_windows = all_windows_train[np.where(all_labels_train == symbols[i])]
@@ -296,24 +299,24 @@ def main():
                    os.path.isdir(os.path.join(folder_data, i))]
     list_study = list_study[:]
     # Split the list into 90% training and 10% testing
-    list_study_train, list_study_test = train_test_split(list_study, test_size=0.1, random_state=42)
-    print("Training set:", list_study_train)
-    print("Testing set:", list_study_test)
+    # list_study_train, list_study_test = train_test_split(list_study, test_size=0.1, random_state=42)
+    # print("Training set:", list_study_train)
+    # print("Testing set:", list_study_test)
     # I convert list_study_test to numpy array to use np.save , save list_study_test
-    list_study_test = np.array(list_study_test)
-    np.save(path_project + '/Data/list_study_test.npy', list_study_test)
-    # How to load list_study_test and check it
-    list_study_test_save = np.load(path_project + '/Data/list_study_test.npy')
-    # How to check file list_study_test_save the same list_study_test
-    assert (list_study_test == list_study_test_save).all()
+    # list_study_test = np.array(list_study_test)
+    # np.save(path_project + '/Data/list_study_test.npy', list_study_test)
+    # # How to load list_study_test and check it
+    # list_study_test_save = np.load(path_project + '/Data/list_study_test.npy')
+    # # How to check file list_study_test_save the same list_study_test
+    # assert (list_study_test == list_study_test_save).all()
 
-    path_save = path_project + '/Data/Data_Study/'
+    path_save = path_project + '/Data/Data_Study_N_V/'
     # Check if the folder save data exists
     if os.path.exists(path_save):
         shutil.rmtree(path_save)
     os.makedirs(path_save)
-    process_and_saved_data(list_study_train, path_save, split='train')
-    process_and_saved_data(list_study_test, path_save, split='test')
+    process_and_saved_data(list_study, path_save, split='train')
+    # process_and_saved_data(list_study_test, path_save, split='test')
 
 
 
