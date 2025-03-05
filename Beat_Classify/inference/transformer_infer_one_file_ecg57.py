@@ -11,18 +11,16 @@ from Beat_Classify.inference.ec57_command import run_bxb, run_sumstats
 
 from Beat_Classify.dataset.data_from_study import plot_signal
 from Beat_Classify.dataset.data_from_study import butter_bandpass_filter
+from Beat_Classify.define import before, after, block_size, vocab_size, num_classes, save_log_path, path2db
 
 # The following code is adapted from a tutorial by Andrej Kapathy, available at https://github.com/karpathy/nanoGPT
 # The explaination behind this code and the model files can be found in the paper "Interpretable Pre-Trained Transformers for Heart Time-Series Data"
 # available at https://arxiv.org/abs/2407.20775
 
-block_size = 30 # this is context length
 n_embd = 64
 n_head = 8
 n_layer = 8
 dropout = 0.2
-num_classes = 2
-vocab_size = 1001 # (0 - 100)
 
 model_path = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Model_beat_classify_study_data_64_8_8_500_500000.pth"
 # model_path = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Model/Heatbeat_pretrained_128_16_16_500_100_99_train_222.pth"
@@ -288,7 +286,6 @@ def inference_one_file_v1(file_name, batch_size_infer):
 def inference_one_file_v2(file_name, model_training, batch_size_infer):
     sampling_rate = 100
     # before, after = 250, 250
-    before, after = 12, 18
 
     # Read data
     signal = wf.rdrecord(file_name, channels=[0]).p_signal[:, 0]
@@ -418,7 +415,6 @@ def eval_ec57(model_path_ec57):
     print(f"Eval model name: {model_path_ec57}")
 
     # Remove result if exist
-    save_log_path = '/home/server2/Desktop/Vuong/Data/PhysionetData/'
     list_files = [i for i in glob(save_log_path + "/*")]
     for file in list_files:
         if "_report_line.out" in file:
@@ -433,7 +429,6 @@ def eval_ec57(model_path_ec57):
     sd_file = os.path.join(save_log_path, f"{ref_ext}_sd.out")
     report_standard_file = os.path.join(save_log_path, f"{ref_ext}_report_standard.out")
 
-    path2db = '/home/server2/Desktop/Vuong/Data/PhysionetData/mitdb'
     file_names = glob(path2db + '/*.dat')
     # Get rid of the extension
     # file_names = [p[:-4] for p in file_names

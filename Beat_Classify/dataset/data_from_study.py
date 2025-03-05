@@ -21,6 +21,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
+from Beat_Classify.define import before, after, block_size, vocab_size
 
 
 def butter_bandpass_filter(
@@ -111,9 +112,9 @@ def plot_info_event(ecg_signal, beats, symbols, start_highlight, stop_highlight,
 
 
 def get_result_from_technical(file):
-    before, after = 12, 18
-    extend_signal = 30
-    vocab_size = 1000
+
+    extend_signal = block_size
+    scale_number = vocab_size - 1
     sampling_rate = 100
     window_peaks = []
     labels = []
@@ -178,7 +179,7 @@ def get_result_from_technical(file):
     # Resample from 250->100
     signal, _ = resample_sig(ecg_signals, fs_origin, sampling_rate)
     # Scale signal to 0->255
-    signal = np.round((vocab_size) * minmax_scale(signal), 0)
+    signal = np.round((scale_number) * minmax_scale(signal), 0)
 
     r_peaks = (r_peaks * sampling_rate) // fs_origin
     startSample = (startSample * sampling_rate) // fs_origin
