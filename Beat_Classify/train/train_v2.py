@@ -6,6 +6,8 @@ import os
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+from glob import glob
 
 from Beat_Classify.inference.transformer_infer_one_file_ecg57 import eval_ec57
 from Beat_Classify.define import path_model, path_save_data, path_model_ec57, block_size, batch_size
@@ -53,6 +55,54 @@ indices = np.random.permutation(data.shape[0])
 # Shuffle data and labels using the generated indices
 data = data[indices]
 labels = labels[indices]
+
+def load_data_bcty():
+    # if config.label_dir is not None:
+    #     data_path = config.label_dir
+    # else:
+    #     data_path = config.run_dir
+
+    train_data_np = []
+    train_label_np = []
+    eval_data_np = []
+    eval_label_np = []
+
+    SAMPLING_RATE = 128
+    subseq_size = int(10 * SAMPLING_RATE)
+    data_type = "labseq"
+    data_path = "/media/server2/MegaDataset/Vuong_Data/ECG_LLM_DATA/ecg_norm_1_data_label/"
+
+    if data_type == "labseq":
+        all_train_data = glob(data_path + '/train/sub*.npy')
+        all_eval_data = glob(data_path + '/eval/sub*.npy')
+        for train_file in tqdm(all_train_data, leave=True, desc="Load Training Dataset Progress"):
+            data = np.load(train_file)
+            data = np.reshape(data, (-1, subseq_size, data.shape[-1]))
+            label = np.load(train_file.replace("sub_", "lab_"))
+            label = np.reshape(label, (-1, subseq_size))
+
+            train_label_np.append(label)
+            train_data_np.append(data)
+
+        train_data_np = np.concatenate(train_data_np, axis=0)
+        train_label_np = np.concatenate(train_label_np, axis=0)
+        for eval_file in tqdm(all_eval_data, leave=True, desc="Load Testing Dataset Progress"):
+            data = np.load(eval_file)
+            data = np.reshape(data, (-1, subseq_size, data.shape[-1]))
+            label = np.load(eval_file.replace("sub_", "lab_"))
+            label = np.reshape(label, (-1, subseq_size))
+
+            eval_data_np.append(data)
+            eval_label_np.append(label)
+
+        eval_data_np = np.concatenate(eval_data_np, axis=0)
+        eval_label_np = np.concatenate(eval_label_np, axis=0)
+
+
+    # config.set_inputdims(train_data_np.shape[-1])
+    return train_data_np, train_label_np, eval_data_np, eval_label_np
+train_data_np, train_label_np, eval_data_np, eval_label_np = load_data_bcty()
+
 
 def get_batch_ecg(split):
     data_batch = train_data if split == 'train' else test_data

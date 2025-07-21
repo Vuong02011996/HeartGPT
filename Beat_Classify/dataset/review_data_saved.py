@@ -1,9 +1,8 @@
 import numpy as np
 import matplotlib
-
 matplotlib.use('TkAgg')
-
 import matplotlib.pyplot as plt
+from Beat_Classify.define import path_save_data
 
 def plot_signal(signal, symbol):
     plt.figure()
@@ -38,14 +37,17 @@ def plot_windows_grid(windows, grid_size=(10, 10)):
     plt.show()
 
 
-types_beat = [0, 1]
-symbols = ['N', 'V']
+# types_beat = [0, 1]
+# symbols = ['N', 'V']
+
+types_beat = [0, 1, 2, 3]
+symbols = ['N', 'S', 'V', "F"]
+
 split = 'train'
-path_save ='/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_Study_N_V/'
 # Define the path to the saved file
 for i, type_beat in enumerate(types_beat):
-    if symbols[i] == 'N':
-        file_path = path_save + f'all_windows_{split}_{symbols[i]}.npy'
+    if symbols[i] == 'V':
+        file_path = path_save_data + f'all_windows_{split}_{symbols[i]}.npy'
         # Load the data
         all_windows_loaded = np.load(file_path)
         plot_windows_grid(all_windows_loaded[:100])

@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-import scipy.io
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from Data.data_process import re_process_data
+from Beat_Classify.dataset.data_process import re_process_data
 
 # Harry Davies 19_09_2024
 

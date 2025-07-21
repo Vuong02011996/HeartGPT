@@ -1,6 +1,6 @@
-from Data.data_process import read_data
+from Beat_Classify.dataset.data_process import read_data
 from sklearn.preprocessing import minmax_scale  # for rescaling
-from wfdb.processing import resample_sig, resample_singlechan
+from wfdb.processing import resample_sig
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')

@@ -389,11 +389,6 @@ class App(QMainWindow):
 
 
 
-
-
-
-
-
     def update_slider_label(self, value):
         # Update the label with the current slider value
         self.slider_label.setText(str(value))

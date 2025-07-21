@@ -390,12 +390,6 @@ class App(QMainWindow):
             self.plot_canvas.draw()
 
 
-
-
-
-
-
-
     def update_slider_label(self, value):
         # Update the label with the current slider value
         self.slider_label.setText(str(value))
@@ -487,10 +481,6 @@ class App(QMainWindow):
             self.worker.start()
 
             self.save_button.setEnabled(False)
-
-
-
-
 
 
     def plot_output(self, output):

@@ -20,7 +20,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 PATH = '/home/server2/Desktop/Vuong/Data/PhysionetData/mitdb/'
-path_data_save = "/home/server2/Desktop/Vuong/Reference_Project/HeartGPT/Data/Data_ECG/"
+path_data_save = "/Data/Data_ECG/"
 sampling_rate = 100
 
 # non-beat labels
