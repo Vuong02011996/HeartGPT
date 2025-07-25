@@ -81,5 +81,6 @@ Total QRS complexes: 83978  Total VEBs: 5900  Total SVEBs: 2
 + Add encoder to model transformer.
 + Add position embedding new to transformer model.
 + Change tokenization 
++ Using flash attention + layer norm.
 
 

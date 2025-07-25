@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import numpy as np
+from sklearn.model_selection import KFold
+import os
 
+from ECG_LLM.dataset_processing.dataset import load_data_bcty, load_data_bcty_all
+from ECG_LLM.define import model_path, path_model
 from ECG_LLM.config_model import (batch_size,
                                   device,
                                   eval_iters,
@@ -18,38 +22,71 @@ from ECG_LLM.config_model import (batch_size,
                                   eval_interval)
 
 
+train_data_np, train_label_np = load_data_bcty_all()
+os.makedirs(path_model, exist_ok=True)
+
+data = train_data_np
+labels = train_label_np
+
+
+def get_batch_ecg(split):
+
+    data_batch = train_data  if split == 'train' else test_data
+    labels_batch  = train_labels  if split == 'train' else test_labels
+    ix = torch.randint(data_batch.shape[0], (batch_size,))
+    x = torch.stack([torch.tensor(data_batch[i], dtype=torch.long) for i in ix])
+    y = torch.stack([torch.tensor(labels_batch[i], dtype=torch.long) for i in ix])
+    x, y = x.to(device), y.to(device)
+    return x, y
+
+
+@torch.no_grad()
+def estimate_loss():
+    out = {}
+    model.eval()
+    for split in ['train', 'val']:
+    # for split in ['train']:
+        losses = torch.zeros(eval_iters)
+        for k in range(eval_iters):
+            X, Y = get_batch_ecg(split)
+            logits, loss = model(X, Y)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
+
+
 class Head(nn.Module):
-    def __init__(self, head_size, weights_matrices):
+
+    def __init__(self, head_size):
         super().__init__()
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.dropout = nn.Dropout(dropout)
-        self.weights_matrices = weights_matrices  # Shared list to store attention weights
 
     def forward(self, x):
         B, T, C = x.shape
         k = self.key(x)
         q = self.query(x)
-        wei = q @ k.transpose(-2, -1) * C**-0.5
-        wei = F.softmax(wei, dim=-1)
+        wei = q @ k.transpose(-2, -1) * C**-0.5 # square root headsize # (B, T, C) @ (B, C, T) = B, T, T
+        # for every batch, we will now have a T by T matrix giving us the affinities of each token
+
+        # the tril signifies a decoder block, future tokens cannot communicate with the past
+        wei = F.softmax(wei, dim=-1)# all attention weights sum to 1 for updating a single token
         wei = self.dropout(wei)
         v = self.value(x)
         out = wei @ v
-
-        # Save attention weights to the shared list
-        self.weights_matrices.append(wei.detach().cpu().numpy())
-
         return out
 
 
 class MultiHeadAttention(nn.Module):
 
-    def __init__(self, num_heads, head_size, weights_matrices):
+    def __init__(self, num_heads, head_size):
         super().__init__()
         # creating a list of head objects (turned into modules) resulting in a number of head modules
         # then assigns the list of modules to self.heads - these run in parellel
-        self.heads = nn.ModuleList([Head(head_size, weights_matrices) for _ in range(num_heads)])
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
         self.proj = nn.Linear(n_embd, n_embd) #projection generally matches sizes for adding in residual connection
         self.dropout = nn.Dropout(dropout)
 
@@ -76,11 +113,11 @@ class FeedForward(nn.Module):
 
 class Block(nn.Module):
 
-    def __init__(self, n_embd, n_head, weights_matrices):
+    def __init__(self, n_embd, n_head):
         super().__init__()
         head_size = n_embd // n_head
         # communication
-        self.sa = MultiHeadAttention(n_head, head_size, weights_matrices)
+        self.sa = MultiHeadAttention(n_head, head_size)
         # computation
         self.ffwd = FeedForward(n_embd)
         # layer norm
@@ -97,12 +134,12 @@ criterion=nn.CrossEntropyLoss()
 # create heart GPT class
 class HeartGPTModel(nn.Module):
 
-    def __init__(self, weights_matrices):
+    def __init__(self):
         super().__init__()
         # table needs to be vocab size by vocab size, to look up probability of next token given this token
         self.token_embedding_table = nn.Embedding(vocab_size,n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head = n_head, weights_matrices=weights_matrices) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head = n_head) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embd) # final layer norm
         # self.lm_head = nn.Linear(n_embd, vocab_size)
         self.lm_head = nn.Linear(n_embd, num_classes)
@@ -129,6 +166,7 @@ class HeartGPTModel(nn.Module):
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
+
 
     def generate(self, idx, max_new_tokens):
         # idx is (B, T) array of indices in the current context
@@ -158,10 +196,6 @@ class HeartGPTModel(nn.Module):
         # # apply softmax to get probabilities
         probs = F.softmax(logits, dim=-1) # (B, C)
         probs = probs.cpu().detach().numpy()
-        # # sample from the distribution
-        # idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
-        # # append sampled index to the running sequence
-        # idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
 
         argmax_output = np.argmax(probs, axis=-1)
 
@@ -177,15 +211,65 @@ class HeartGPTModel(nn.Module):
         # logits = logits[:, -1, :] # becomes (B, C)
         # # apply softmax to get probabilities
         probs = F.softmax(logits, dim=-1)  # (B, C)
-        # probs = probs.cpu().detach().numpy()
-        # # sample from the distribution
-        # idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
-        # # append sampled index to the running sequence
-        # idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
-
-        # argmax_output = np.argmax(probs, axis=-1)
 
         return probs
+
+model = HeartGPTModel()
+model.load_state_dict(torch.load(model_path))
+m = model.to(device)
+# random loss at this point would be -log(1/65)
+
+#AdamW
+optimizer  = torch.optim.AdamW(m.parameters(), lr=learning_rate)
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+# counter the number of model parameters to be trained
+num_parameters = count_parameters(model)
+print(f"The model has {num_parameters} trainable parameters.")
+if __name__ == '__main__':
+    # Initialize KFold with 5 splits
+    # kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    kf = KFold(n_splits=5, shuffle=True)
+    loss_train_max = 10
+    loss_test_max = 10
+    # Iterate through each fold
+    fold = 1
+
+
+    for train_index, test_index in kf.split(data):
+        train_data, test_data = data[train_index], data[test_index]
+        train_labels, test_labels = labels[train_index], labels[test_index]
+        print("Training on fold: ", fold)
+        for iter in range(max_iters):
+            if iter % eval_interval == 0:
+                losses = estimate_loss()
+                print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+                # print(f"step {iter}: train loss {losses['train']:.4f}")
+
+            # if iter % save_interval == 0 or iter == max_iters-1:
+            # if iter == max_iters-1:
+                #model_path for checkpointing
+            if losses['val'] < loss_test_max and losses['train'] < loss_train_max:
+                # Delete the previous model
+                model_path = f"{path_model}Model_beat_classify_study_data_n_embd_{n_embd}_n_head_{n_head}_n_layer_{n_layer}_block_size_{block_size}_token_{vocab_size}.pth"
+                if os.path.exists(model_path):
+                    os.remove(model_path)
+                torch.save(model.state_dict(), model_path)
+                loss_train_max = losses['train']
+                loss_test_max = losses['val']
+
+            #get batch
+            x_batch, y_batch = get_batch_ecg('train')
+
+            # loss evaluation
+            logits, loss = m(x_batch, y_batch)
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+        fold += 1
+
 
 
 

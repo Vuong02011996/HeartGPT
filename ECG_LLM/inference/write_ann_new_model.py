@@ -16,6 +16,7 @@ from ECG_LLM.process_data_training.reprocessing import beat_annotations, butter_
 
 from ECG_LLM.define import model_path
 from ECG_LLM.Hearbeat_without_pre_training_k_fold import HeartGPTModel
+# from ECG_LLM.Hearbeat_without_pre_training_overfitting import HeartGPTModel
 from ECG_LLM.utils import get_peaks
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -28,11 +29,6 @@ m_infer = model.to(device)
 
 def get_peak_symbols():
     all_events = glob(study_path + '*/*/*.hea')
-    error = 0
-    # Open a file to log error paths
-    # with open(error_log_file, 'w') as f:
-    #     f.write("Error Event Paths:\n")
-    #     f.write("=" * 50 + "\n\n")
     for event_path in tqdm(all_events):
         # if "670caae9907d979628088a52" not in event_path:
         #     continue
@@ -173,7 +169,6 @@ def get_peak_symbols():
 
 
 if __name__ == '__main__':
-    error_log_file = '/media/server2/MegaDataset/DataTraining/Log_File_Error/error_event_paths_data_training.txt'
     study_path = "/media/server2/MegaDataset/DataTraining/LabelCorrect/"
     # study_path = "/media/server2/MegaDataset/DataTraining/strip-include-to-report-10_11_12-2024/"
     get_peak_symbols()

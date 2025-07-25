@@ -86,9 +86,12 @@ def plot_numpy_data_v2(frame_ecg: np.ndarray, frame_label: np.ndarray, origin_la
 
     # # Plot the attention weights
     # axs[3].imshow(attention_weights, aspect='auto', cmap='viridis')
-    # axs[3].set_title("Attention Weights")
-    # axs[3].set_xlabel("Key Index")
-    # axs[3].set_ylabel("Query Index")
+    # sum(attention_weights[:, 0]) = 0.14 # 1 , sum(attention_weights[0,]) = 1 => plot follow row is exactly
+    axs[3].plot(attention_weights[0], label="wei token in row", color="green")
+    axs[3].set_title("Attention Weights")
+    axs[3].set_xlabel("Key Index")
+    axs[3].set_ylabel("Query Index")
+    axs[3].legend()
 
     # Adjust layout and display the plot
     plt.tight_layout()
@@ -112,7 +115,7 @@ def infer_data_training():
         
         print(argmax_output)
         for idx, label_strip in enumerate(argmax_output):
-            plot_numpy_data_v2(batch_data[idx], label_strip, batch_label[idx], attention_weights)
+            plot_numpy_data_v2(batch_data[idx], label_strip, batch_label[idx], attention_weights[idx])
         i += batch_size_infer
 
 

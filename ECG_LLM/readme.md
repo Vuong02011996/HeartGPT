@@ -3,15 +3,26 @@
   + Top 1 2020 
 + https://github.com/antonior92/physionet-12ecg-classification 
 + ConvTrans: https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/cit2.12293
++ ConvTrans not  public: https://pubmed.ncbi.nlm.nih.gov/35227968/
 + 
 
-# Tokenization
+## Attention Is All You Need
++ 
+
+#  Improvement
+## Add encoder 
+
+
+
+## Tokenization
 + ECG-Byte: https://arxiv.org/pdf/2412.14373 , https://github.com/willxxy/ECG-Byte
 
-# Position embedding
+## Position embedding
 
 
-# Add encoder 
+## Flash attention
+
+
 
 
 # Train 

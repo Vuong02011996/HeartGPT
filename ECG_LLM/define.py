@@ -1,6 +1,7 @@
 
 path_model = "/media/server2/MegaDataset/DataTraining/Models/"
 model_path = path_model + "Model_beat_classify_study_data_n_embd_64_n_head_8_n_layer_8_block_size_1280_token_512.pth"
+# model_path = path_model + "Model_overfitting_n_embd_64_n_head_8_n_layer_8_block_size_1280_token_512.pth"
 
 data_path = "/media/server2/MegaDataset/DataTraining/NumpyData_tokenization_512"
 PHYSIONET_DATA = "/media/server2/MegaDataset/PhysionetData/TEST_BXB"

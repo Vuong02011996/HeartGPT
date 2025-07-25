@@ -23,6 +23,7 @@ n_layer = 8
 # n_layer = 16
 
 dropout = 0.2
+# dropout = 0.0
 
 
 # GPU is necessary. Training of 8 head, 8 layer model and 500 context length was possible with 12GB VRAM

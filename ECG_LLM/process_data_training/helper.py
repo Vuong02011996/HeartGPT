@@ -1,6 +1,30 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+BEAT_COLORS = {
+    'N': 'white',
+    'S': 'orange',
+    'A': 'orange',
+    'V': 'blue',
+    '|': 'purple',
+    'Q': 'purple',
+    'R': 'cyan',
+    'M': 'olive'
+}
+
+BEAT_COLORS_EC = {
+    'NOTABEAT': 'grey',
+    'N':        'black',
+    'S':        'orange',
+    'A':        'orange',
+    'V':        'blue',
+    '|':        'purple',
+    'Others':   'purple',
+    'Q':        'purple',
+    'R':        'white',
+    'M':        'white'
+}
+
 def plot_numpy_data(frame_ecg: np.ndarray, frame_label: np.ndarray) -> None:
     """
     Plots the ECG signal and corresponding labels in two subplots.
@@ -70,16 +94,8 @@ def ecg_to_tokens(ecg_signal: np.ndarray,
     return tokens
 
 
-def _bbox_color(symbol):
-    """Helper function to define the color of the annotation box based on the symbol."""
-    colors = {
-        'N': 'lightgreen',
-        'V': 'lightcoral',
-        'S': 'lightskyblue',
-        'F': 'gold',
-        'Q': 'lightgray'
-    }
-    return dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor=colors.get(symbol, "white"))
+def _bbox_color(x):
+    return dict(boxstyle='round', fc=BEAT_COLORS.get(x, 'white'), ec=BEAT_COLORS_EC.get(x, 'black'))
 
 
 def plot_ecg_with_annotations(ecg_signal, beats, symbols):
